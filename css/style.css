@@ -286,7 +286,8 @@ kbd {
   border: none; background: var(--accent); color: #fff; font-weight: 900; font-size: 1.2rem;
   padding: 12px 36px; border-radius: 999px; box-shadow: 0 5px 0 #a8531a;
 }
-.big-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #a8531a; }
+.big-btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 #a8531a; }
+.big-btn:disabled, .sub-btn:disabled { opacity: .45; cursor: default; }
 .title-nines {
   font-family: var(--script); font-size: 1.6rem; letter-spacing: .15em; color: var(--ink-soft);
   white-space: nowrap; overflow: hidden; height: 2.2em; line-height: 2.2em;

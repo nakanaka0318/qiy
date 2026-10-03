@@ -248,7 +248,8 @@
     if (el.hintBtn.disabled) return;
     state.hints--;
     state.hintUsed = true;
-    el.signHint.textContent = "読み：" + state.q.kana;
+    // 絵で描く表し方には読みがないので、数え方のヒントを出す
+    el.signHint.textContent = state.q.kana ? "読み：" + state.q.kana : "ヒント：" + state.q.tip;
     el.signHint.hidden = false;
     el.signHint.classList.remove("in"); void el.signHint.offsetWidth; el.signHint.classList.add("in");
     sound.pop();
@@ -358,7 +359,8 @@
       el.resultBtn.textContent = "もう一度";
     }
     show(el.result);
-    el.resultBtn.focus({ preventScroll: true });
+    armButtons([el.resultBtn], 400);
+    setTimeout(() => el.resultBtn.focus({ preventScroll: true }), 420);
   }
 
   function onResultNext() {
@@ -374,6 +376,12 @@
   function fillClear() {
     el.clearWord.innerHTML = glyphHtml(state.q);
     el.clearDetail.innerHTML = describe(state.q);
+  }
+
+  // 画面が出た直後のタップや Enter（演出中の連打）で、うっかりボタンが押されないようにする
+  function armButtons(buttons, ms) {
+    buttons.forEach((b) => { b.disabled = true; });
+    setTimeout(() => buttons.forEach((b) => { b.disabled = false; }), ms);
   }
 
   function showClear() {
@@ -395,6 +403,7 @@
     el.clearUltra.hidden = isUltra();
     el.clearNormal.hidden = !isUltra();
     show(el.clear);
+    armButtons([el.clearBtn, el.clearUltra, el.clearNormal, el.clearZukan], 1500);
     sound.fanfare();
     rainOfNines();
   }
@@ -673,7 +682,7 @@
     return { shards, cracks };
   }
 
-  const NINE_GLYPHS = [...new Set(DATA.filter((e) => e.n === 9 && [...e.text].length <= 4).map((e) => e.text))];
+  const NINE_GLYPHS = [...new Set(DATA.filter((e) => e.n === 9 && e.text && [...e.text].length <= 4).map((e) => e.text))];
 
   function rainOfNines() {
     for (let i = 0; i < 40; i++) {
@@ -755,7 +764,7 @@
   function hide(node) { node.hidden = true; }
 
   function titleTicker() {
-    const glyphs = DATA.filter((e) => e.n === 9 && [...e.text].length <= 3).map((e) => e.text);
+    const glyphs = DATA.filter((e) => e.n === 9 && e.text && [...e.text].length <= 3).map((e) => e.text);
     let i = 0;
     const tick = () => {
       if (el.title.hidden) return;
@@ -787,8 +796,8 @@
   document.addEventListener("keydown", (e) => {
     if (!el.zukan.hidden) { if (e.key === "Escape") hide(el.zukan); return; }
     if (!el.title.hidden && e.key === "Enter") { e.preventDefault(); el.startBtn.click(); return; }
-    if (!el.result.hidden && e.key === "Enter") { e.preventDefault(); onResultNext(); return; }
-    if (!el.clear.hidden && e.key === "Enter") { e.preventDefault(); startGame(); return; }
+    if (!el.result.hidden && e.key === "Enter") { e.preventDefault(); if (!el.resultBtn.disabled) onResultNext(); return; }
+    if (!el.clear.hidden) return; // クリア画面は Enter で勝手に始まらない（ボタンを押して選ぶ）
     if (!el.title.hidden) return;
     if (e.key === "ArrowLeft" || e.key === "1") answer(true);
     if (e.key === "ArrowRight" || e.key === "2") answer(false);
