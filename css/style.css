@@ -118,7 +118,7 @@ kbd {
 
 /* 看板 */
 .sign {
-  position: absolute; left: 50%; top: 5%; bottom: calc(32% - 18px); transform: translateX(-50%);
+  position: absolute; left: 50%; top: max(5%, 56px); bottom: calc(32% - 18px); transform: translateX(-50%);
   width: min(78%, 480px); z-index: 2; display: flex; flex-direction: column;
 }
 .sign-board {
@@ -141,6 +141,22 @@ kbd {
 }
 .sign-word.long { font-size: clamp(1.3rem, 5.4vw, 2.3rem); }
 .sign-lang { font-weight: 900; font-size: .95rem; color: #fff6e6; }
+.sign-hint {
+  margin: -2px auto 6px; width: fit-content; max-width: 100%; padding: 2px 12px; border-radius: 999px;
+  background: #fff3b0; color: #6a4200; font-weight: 900; font-size: clamp(.95rem, 4vw, 1.2rem);
+  border: 2px dashed #d99a00; overflow-wrap: anywhere;
+}
+.sign-hint[hidden] { display: none; }
+.sign-hint.in { animation: rise .35s cubic-bezier(.3,1.4,.5,1); }
+.hint-btn {
+  position: absolute; left: 12px; top: 12px; z-index: 6;
+  border: 2px solid #d99a00; background: #fff3b0; color: #6a4200; font-weight: 900; font-size: .9rem;
+  padding: 6px 12px; border-radius: 999px; box-shadow: 0 3px 0 #c58a00;
+}
+.hint-btn b { display: inline-grid; place-items: center; min-width: 1.5em; height: 1.5em; margin-left: 2px;
+  border-radius: 50%; background: #d99a00; color: #fff; font-size: .85rem; }
+.hint-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #c58a00; }
+.hint-btn:disabled { filter: grayscale(1) opacity(.55); cursor: default; }
 .sign-post {
   width: 18px; flex: 1; min-height: 20px; margin: -4px auto 0; border-radius: 0 0 4px 4px; background: linear-gradient(90deg,#7a4a1e,#a26a34,#7a4a1e);
 }

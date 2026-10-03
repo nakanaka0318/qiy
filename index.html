@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@700&family=Noto+Sans+Ethiopic:wght@700&family=Noto+Sans+Cherokee:wght@700&family=Noto+Sans+Mongolian&family=Noto+Serif+Tibetan:wght@700&family=Noto+Sans+Khmer:wght@700&family=Noto+Sans+Myanmar:wght@700&family=Noto+Sans+Lao:wght@700&family=Noto+Sans+Sinhala:wght@700&family=Noto+Sans+Georgian:wght@700&family=Noto+Sans+Armenian:wght@700&family=Noto+Sans+Symbols+2&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 <div id="app">
@@ -30,10 +30,13 @@
       <div class="sign-board">
         <div class="sign-q" id="sign-q">第1問</div>
         <div class="sign-word" id="sign-word">?</div>
+        <div class="sign-hint" id="sign-hint" hidden></div>
         <div class="sign-lang" id="sign-lang">？？？語</div>
       </div>
       <div class="sign-post"></div>
     </div>
+
+    <button class="hint-btn" id="hint-btn" disabled title="看板の言葉の読み方（カタカナ）を見る">💡 ヒント <b id="hint-left">3</b></button>
 
     <div class="timer" id="timer" hidden>
       <svg viewBox="0 0 44 44"><circle class="timer-bg" cx="22" cy="22" r="19"/><circle class="timer-fg" id="timer-fg" cx="22" cy="22" r="19"/></svg>
@@ -117,10 +120,11 @@
       <li><b>🥟 餃子を食べさせる</b> … 「9じゃない」と思ったら<br>（クイヤが「最後の餃子」を食べるよ）</li>
       <li>当たると連続記録アップ。<b>9連続</b>を目指せ！</li>
       <li>9問目は<b class="hot">超難問</b>（言語名ナシ・9秒制限）</li>
+      <li><b>💡 ヒント</b>で看板の言葉の読み方（カタカナ）がわかる。<br>1ゲーム3回まで（失敗して1問目に戻ると3回に回復）</li>
       <li>クリアすると<b>「9の図鑑」</b>が開放される！</li>
     </ul>
     <button class="big-btn" id="start-btn">はじめる</button>
-    <p class="small">キーボード：<kbd>←</kbd>/<kbd>1</kbd> 逃がす　<kbd>→</kbd>/<kbd>2</kbd> 食べさせる　<kbd>Enter</kbd> 次へ</p>
+    <p class="small">キーボード：<kbd>←</kbd>/<kbd>1</kbd> 逃がす　<kbd>→</kbd>/<kbd>2</kbd> 食べさせる　<kbd>H</kbd> ヒント　<kbd>Enter</kbd> 次へ</p>
   </div>
 </section>
 
@@ -176,7 +180,7 @@
 <div class="shatter-layer" id="shatter-layer"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 
-<script src="js/data.js?v=4"></script>
-<script src="js/game.js?v=4"></script>
+<script src="js/data.js?v=5"></script>
+<script src="js/game.js?v=5"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@
   const DATA = window.QIY_DATA;
   const TOTAL = 9;           // 9問連続で成功するとクリア
   const FINAL_SECONDS = 9;   // 最終問題の制限時間
+  const MAX_HINTS = 3;       // ヒントは1ゲーム3回まで
 
   const $ = (id) => document.getElementById(id);
   const el = {
@@ -22,6 +23,7 @@
     zukan: $("zukan"), zukanBtn: $("zukan-btn"), zukanClose: $("zukan-close"), zukanList: $("zukan-list"), zukanCount: $("zukan-count"),
     mute: $("mute-btn"), shatter: $("shatter-layer"), toast: $("toast"),
     clearUnlock: $("clear-unlock"), clearZukan: $("clear-zukan"),
+    hintBtn: $("hint-btn"), hintLeft: $("hint-left"), signHint: $("sign-hint"),
   };
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -93,6 +95,9 @@
     locked: true,
     lastCorrect: false,
     timerId: null,
+    hints: MAX_HINTS,
+    hintUsed: false,   // この問題でヒントを見たか
+    underground: false, // クイヤが穴に潜ったまま（次の看板が出たら戻る）
   };
   const isFinal = () => state.round === TOTAL - 1;
 
@@ -151,10 +156,14 @@
   }
 
   function resetScene() {
-    clearKuiyaAnims();
-    el.kuiya.className.baseVal = "kuiya idle";
-    el.hole.classList.remove("open");
     setMood("happy");
+    if (state.underground) {
+      clearKuiyaAnims({ keep: el.kuiya }); // 穴の中にいる状態は保つ
+    } else {
+      clearKuiyaAnims();
+      el.kuiya.className.baseVal = "kuiya idle";
+      el.hole.classList.remove("open");
+    }
     renderGyoza();
   }
 
@@ -169,7 +178,10 @@
     el.sign.classList.remove("flip"); void el.sign.offsetWidth; el.sign.classList.add("flip");
   }
 
-  function setButtons(on) { el.btnNine.disabled = el.btnNot.disabled = !on; }
+  function setButtons(on) {
+    el.btnNine.disabled = el.btnNot.disabled = !on;
+    syncHint();
+  }
 
   // ───────── 進行 ─────────
   async function nextQuestion() {
@@ -186,16 +198,39 @@
     } else {
       el.glass.hidden = true;
     }
+    state.hintUsed = false;
+    el.signHint.hidden = true;
     showQuestion();
+    if (state.underground) {
+      await sleep(450);
+      await popUp();
+    }
     state.locked = false;
     setButtons(true);
     renderProgress();
     if (isFinal()) startTimer();
   }
 
+  // ───────── ヒント ─────────
+  function syncHint() {
+    el.hintLeft.textContent = state.hints;
+    el.hintBtn.disabled = state.locked || state.hintUsed || state.hints <= 0;
+  }
+  function useHint() {
+    if (el.hintBtn.disabled) return;
+    state.hints--;
+    state.hintUsed = true;
+    el.signHint.textContent = "読み：" + state.q.kana;
+    el.signHint.hidden = false;
+    el.signHint.classList.remove("in"); void el.signHint.offsetWidth; el.signHint.classList.add("in");
+    sound.pop();
+    syncHint();
+  }
+
   function startGame() {
     hide(el.title); hide(el.clear);
     state.round = 0; state.streak = 0; state.used.clear();
+    state.hints = MAX_HINTS;
     nextQuestion();
   }
 
@@ -293,7 +328,7 @@
 
   function onResultNext() {
     if (state.lastCorrect) state.round++;
-    else { state.round = 0; state.used.clear(); }
+    else { state.round = 0; state.used.clear(); state.hints = MAX_HINTS; } // 失敗して1問目に戻るとヒント回復
     nextQuestion();
   }
 
@@ -354,8 +389,14 @@
     const h = el.kuiyaWrap.clientHeight * 1.05;
     await animateKuiya([{ transform: "translateY(0)" }, { transform: `translateY(${h}px)` }],
       { duration: 650, easing: "ease-in", fill: "forwards" });
-    await sleep(350);
-    // 穴からぴょこっと戻ってくる
+    state.underground = true;
+  }
+
+  // 穴からぴょこっと戻ってくる
+  async function popUp() {
+    if (!state.underground) return;
+    const h = el.kuiyaWrap.clientHeight * 1.05;
+    clearKuiyaAnims();
     el.kuiya.className.baseVal = "kuiya";
     sound.pop();
     popText("ぴょこっ", el.kuiyaWrap);
@@ -366,6 +407,8 @@
     ], { duration: 500, easing: "ease-out", fill: "forwards" });
     clearKuiyaAnims();
     el.hole.classList.remove("open");
+    el.kuiya.className.baseVal = "kuiya idle";
+    state.underground = false;
   }
 
   // クイヤ本体の動き（WAAPI）。終わったら必ず解除して元の位置に戻す
@@ -425,6 +468,7 @@
 
   // 最終問題成功：クイヤがガラスを突き破って飛び込む
   async function diveThroughGlass() {
+    if (state.underground) { await sleep(300); await popUp(); }
     clearKuiyaAnims();
     el.kuiya.className.baseVal = "kuiya";
     setMood("happy");
@@ -622,6 +666,7 @@
   el.startBtn.addEventListener("click", () => { sound.unlock(); startGame(); });
   el.btnNine.addEventListener("click", () => answer(true));
   el.btnNot.addEventListener("click", () => answer(false));
+  el.hintBtn.addEventListener("click", useHint);
   el.resultBtn.addEventListener("click", onResultNext);
   el.clearBtn.addEventListener("click", startGame);
   el.zukanBtn.addEventListener("click", openZukan);
@@ -638,6 +683,7 @@
     if (!el.clear.hidden && e.key === "Enter") { e.preventDefault(); startGame(); return; }
     if (e.key === "ArrowLeft" || e.key === "1") answer(true);
     if (e.key === "ArrowRight" || e.key === "2") answer(false);
+    if (e.key === "h" || e.key === "H") useHint();
   });
 
   syncMute();
