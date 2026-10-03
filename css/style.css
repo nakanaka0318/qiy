@@ -196,8 +196,14 @@ kbd {
   position: absolute; right: 8%; bottom: 13%; width: min(32vw, 26vh, 220px); z-index: 3;
 }
 .plate svg { width: 100%; display: block; overflow: visible; }
-.gyoza { transform-box: fill-box; transform-origin: center; transition: transform .25s, opacity .25s; }
-.gyoza.eaten { transform: scale(0) rotate(30deg); opacity: 0; }
+.gyoza { transform-box: fill-box; transform-origin: center; }
+.gyoza-tag {
+  position: absolute; left: 50%; top: 86%; transform: translateX(-50%) rotate(-2deg); z-index: 1;
+  background: #fffaf0; color: #7a3b12; border: 2px solid #c99a52; border-radius: 8px;
+  padding: 2px 8px; font-weight: 900; font-size: clamp(.7rem, 2.6vw, .9rem); white-space: nowrap;
+  box-shadow: 0 3px 0 rgba(0,0,0,.12);
+}
+.gyoza-tag.done { color: var(--nine); border-color: var(--nine); animation: hop .4s ease; }
 
 /* エフェクト */
 .fx { position: absolute; inset: 0; pointer-events: none; z-index: 5; }

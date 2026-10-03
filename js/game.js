@@ -10,7 +10,7 @@
     app: $("app"), stage: $("stage"), progress: $("progress"), best: $("best"),
     sign: $("sign"), signQ: $("sign-q"), signWord: $("sign-word"), signLang: $("sign-lang"),
     timer: $("timer"), timerFg: $("timer-fg"), timerNum: $("timer-num"),
-    kuiya: $("kuiya"), kuiyaWrap: $("kuiya-wrap"), hole: $("hole"), gyozas: $("gyozas"), plate: $("plate"),
+    kuiya: $("kuiya"), kuiyaWrap: $("kuiya-wrap"), hole: $("hole"), gyozas: $("gyozas"), plate: $("plate"), gyozaTag: $("gyoza-tag"),
     fx: $("fx"), glass: $("glass"),
     btnNine: $("btn-nine"), btnNot: $("btn-not"),
     title: $("title-screen"), startBtn: $("start-btn"), titleNines: $("title-nines"),
@@ -68,7 +68,7 @@
       ok() { tone(784, 0.15, { type: "triangle" }); tone(1175, 0.3, { type: "triangle", at: 0.12 }); },
       ng() { tone(220, 0.45, { type: "sawtooth", vol: 0.12, slide: -120 }); },
       dig() { for (let i = 0; i < 5; i++) noise(0.09, { at: i * 0.13, freq: 500, vol: 0.4 }); },
-      chomp() { for (let i = 0; i < 3; i++) { noise(0.07, { at: i * 0.2, filter: "bandpass", freq: 1400, vol: 0.6 }); tone(180, 0.08, { at: i * 0.2, vol: 0.15 }); } },
+      chomp() { for (let i = 0; i < 3; i++) { noise(0.07, { at: i * 0.28, filter: "bandpass", freq: 1400, vol: 0.6 }); tone(180, 0.08, { at: i * 0.28, vol: 0.15 }); } },
       pop() { tone(500, 0.18, { type: "triangle", vol: 0.2, slide: 700 }); },
       tick() { tone(1320, 0.05, { type: "square", vol: 0.06 }); },
       drum() { for (let i = 0; i < 3; i++) tone(90, 0.3, { at: i * 0.32, vol: 0.5, slide: -40 }); tone(70, 0.8, { at: 1.0, vol: 0.6, slide: -30 }); },
@@ -125,21 +125,29 @@
     el.best.textContent = state.best;
   }
 
+  // お皿には「最後の餃子」がひとつだけ
   function renderGyoza() {
-    const spots = [[22, 30], [72, 22], [122, 30]];
-    el.gyozas.innerHTML = spots.map(([x, y]) => `
-      <g class="gyoza" transform="translate(${x} ${y})">
-        <g>
+    el.gyozas.innerHTML = `
+      <g transform="translate(64 12) scale(1.3)">
+        <g class="gyoza">
           <path d="M0 20 Q28 -20 56 20 Q28 28 0 20Z" fill="#f6dfae" stroke="#c99a52" stroke-width="2"/>
           <path d="M3 20 Q28 27 53 20" fill="none" stroke="#d48a2c" stroke-width="5" stroke-linecap="round" opacity=".8"/>
           <path d="M16 6 q3 4 0 8 M24 2 q3 4 0 8 M32 2 q3 4 0 8 M40 6 q3 4 0 8" fill="none" stroke="#c99a52" stroke-width="1.8" stroke-linecap="round"/>
         </g>
-      </g>`).join("");
+      </g>`;
+    el.gyozaTag.textContent = "最後の餃子";
+    el.gyozaTag.classList.remove("done");
   }
 
   function setMood(mood) {
     const mouth = el.kuiya.querySelector(".mouth");
-    mouth.setAttribute("d", mood === "sad" ? "M114 128 Q123 119 132 128" : "M114 122 Q118 128 123 122 Q128 128 132 122");
+    const d = {
+      sad: "M114 128 Q123 119 132 128",
+      eat: "M115 121 Q123 137 131 121 Z",
+      happy: "M114 122 Q118 128 123 122 Q128 128 132 122",
+    };
+    mouth.setAttribute("d", d[mood] || d.happy);
+    mouth.setAttribute("fill", mood === "eat" ? "#6b3a1f" : "none");
   }
 
   function resetScene() {
@@ -362,26 +370,57 @@
 
   // クイヤ本体の動き（WAAPI）。終わったら必ず解除して元の位置に戻す
   let kuiyaAnims = [];
-  function animateKuiya(frames, opts) {
-    const a = el.kuiya.animate(frames, opts);
+  function animateKuiya(frames, opts, target = el.kuiya) {
+    const a = target.animate(frames, opts);
     kuiyaAnims.push(a);
     return a.finished.catch(() => {});
   }
-  function clearKuiyaAnims() {
-    kuiyaAnims.forEach((a) => a.cancel());
-    kuiyaAnims = [];
+  function clearKuiyaAnims({ keep = null } = {}) {
+    // keep: 食べ終わった餃子など、次の問題まで状態を残したい要素
+    kuiyaAnims = kuiyaAnims.filter((a) => {
+      if (keep && a.effect && a.effect.target === keep) return true;
+      a.cancel();
+      return false;
+    });
   }
 
+  // クイヤがお皿まで歩いていき、最後の餃子を食べる
   async function animEat() {
-    const g = el.gyozas.querySelector(".gyoza:not(.eaten)");
+    // お皿の奥に回り込み、口が餃子のすぐ上に来る位置まで歩く
+    const w = el.kuiyaWrap.getBoundingClientRect(), pl = el.plate.getBoundingClientRect();
+    const dx = (pl.left + pl.width * 0.5) - (w.left + w.width * 0.56);
+    const dy = (pl.top + pl.height * 0.1) - (w.top + w.height * 0.74);
+    const at = (k, hop = 0) => `translate(${dx * k}px, ${dy * k - hop}px)`;
+    el.kuiya.className.baseVal = "kuiya";
+    await animateKuiya([
+      { transform: `${at(0)} rotate(0)` },
+      { transform: `${at(0.25, 6)} rotate(5deg)`, offset: 0.25 },
+      { transform: `${at(0.5)} rotate(-5deg)`, offset: 0.5 },
+      { transform: `${at(0.75, 6)} rotate(5deg)`, offset: 0.75 },
+      { transform: `${at(1)} rotate(0)` },
+    ], { duration: 650, easing: "linear", fill: "forwards" }, el.kuiyaWrap);
+
+    // もぐもぐ
+    setMood("eat");
     sound.chomp();
-    popText("もぐもぐ", el.plate);
-    if (g) {
-      g.animate([{ transform: "scale(1)" }, { transform: "scale(1.15,.85)" }, { transform: "scale(1)" }], { duration: 200, iterations: 3 });
-      await sleep(600);
-      g.classList.add("eaten");
-    }
-    await sleep(500);
+    popText("もぐもぐ", el.kuiyaWrap);
+    const g = el.gyozas.querySelector(".gyoza");
+    animateKuiya([
+      { transform: "translateY(0)" }, { transform: "translateY(8%) scale(1.04, .94)" }, { transform: "translateY(0)" },
+    ], { duration: 280, iterations: 3 });
+    await animateKuiya([
+      { transform: "scale(1)" }, { transform: "scale(.72)", offset: 0.33 }, { transform: "scale(.4)", offset: 0.66 }, { transform: "scale(0)" },
+    ], { duration: 840, easing: "steps(3, jump-end)", fill: "forwards" }, g);
+    setMood("happy");
+    el.gyozaTag.textContent = "ごちそうさま！";
+    el.gyozaTag.classList.add("done");
+    await sleep(250);
+
+    // 元の場所へ戻る
+    await animateKuiya([
+      { transform: at(1) }, { transform: at(0) },
+    ], { duration: 450, easing: "ease-in-out", fill: "forwards" }, el.kuiyaWrap);
+    clearKuiyaAnims({ keep: g });
   }
 
   // 最終問題成功：クイヤがガラスを突き破って飛び込む
