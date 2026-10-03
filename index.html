@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>クイヤゲーム</title>
+<meta name="description" content="世界の言語の「9」を見抜け！ クイヤを逃がすか、餃子を食べるか。9連続成功を目指すゲーム。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@700&family=Noto+Sans+Ethiopic:wght@700&family=Noto+Sans+Cherokee:wght@700&family=Noto+Sans+Mongolian&family=Noto+Serif+Tibetan:wght@700&family=Noto+Sans+Khmer:wght@700&family=Noto+Sans+Myanmar:wght@700&family=Noto+Sans+Lao:wght@700&family=Noto+Sans+Sinhala:wght@700&family=Noto+Sans+Georgian:wght@700&family=Noto+Sans+Armenian:wght@700&family=Noto+Sans+Symbols+2&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="hud">
+    <h1 class="logo">クイヤ<span>ゲーム</span></h1>
+    <div class="progress" id="progress" aria-label="連続成功"></div>
+    <div class="hud-right">
+      <div class="best">ベスト <b id="best">0</b></div>
+      <button class="icon-btn" id="zukan-btn" title="9の図鑑">📖</button>
+      <button class="icon-btn" id="mute-btn" title="音のオン/オフ">🔊</button>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="sky"><div class="sun"></div><div class="cloud c1"></div><div class="cloud c2"></div></div>
+    <div class="ground"></div>
+
+    <div class="sign" id="sign">
+      <div class="sign-board">
+        <div class="sign-q" id="sign-q">第1問</div>
+        <div class="sign-word" id="sign-word">?</div>
+        <div class="sign-lang" id="sign-lang">？？？語</div>
+      </div>
+      <div class="sign-post"></div>
+    </div>
+
+    <div class="timer" id="timer" hidden>
+      <svg viewBox="0 0 44 44"><circle class="timer-bg" cx="22" cy="22" r="19"/><circle class="timer-fg" id="timer-fg" cx="22" cy="22" r="19"/></svg>
+      <span id="timer-num">9</span>
+    </div>
+
+    <div class="hole" id="hole"></div>
+    <div class="kuiya-wrap" id="kuiya-wrap">
+      <svg class="kuiya" id="kuiya" viewBox="0 0 220 180" aria-label="クイヤ">
+        <g class="tail">
+          <path d="M66 132 C30 136 14 108 24 80" fill="none" stroke="#e39a4c" stroke-width="13" stroke-linecap="round"/>
+          <g transform="translate(26 60) rotate(-12) scale(1.35)">
+            <path d="M0 -26 C16 -20 18 2 0 18 C-18 2 -16 -20 0 -26Z" fill="#8b5a2b" stroke="#5e3a17" stroke-width="3"/>
+            <path d="M0 -18 L0 10" stroke="#c48a52" stroke-width="3" stroke-linecap="round"/>
+          </g>
+        </g>
+        <ellipse cx="120" cy="170" rx="62" ry="8" fill="#000" opacity=".12"/>
+        <path d="M78 60 L70 26 L102 48Z" fill="#e39a4c" stroke="#b86f28" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M150 48 L172 24 L170 62Z" fill="#e39a4c" stroke="#b86f28" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M80 54 L76 36 L94 48Z" fill="#f7b9b0"/>
+        <path d="M156 50 L168 36 L166 58Z" fill="#f7b9b0"/>
+        <ellipse cx="120" cy="112" rx="66" ry="58" fill="#f0a95a" stroke="#b86f28" stroke-width="3"/>
+        <ellipse cx="124" cy="132" rx="40" ry="32" fill="#fde6c4"/>
+        <g class="eyes">
+          <ellipse cx="100" cy="100" rx="9" ry="12" fill="#2b1a0e"/>
+          <ellipse cx="146" cy="100" rx="9" ry="12" fill="#2b1a0e"/>
+          <circle cx="103" cy="95" r="3.4" fill="#fff"/>
+          <circle cx="149" cy="95" r="3.4" fill="#fff"/>
+        </g>
+        <ellipse cx="88" cy="122" rx="9" ry="5" fill="#f58f8f" opacity=".6"/>
+        <ellipse cx="160" cy="122" rx="9" ry="5" fill="#f58f8f" opacity=".6"/>
+        <ellipse cx="123" cy="114" rx="6" ry="4.5" fill="#6b3a1f"/>
+        <path class="mouth" d="M114 122 Q118 128 123 122 Q128 128 132 122" fill="none" stroke="#6b3a1f" stroke-width="2.6" stroke-linecap="round"/>
+        <g fill="#e39a4c" stroke="#b86f28" stroke-width="3">
+          <ellipse cx="86" cy="164" rx="18" ry="9"/>
+          <ellipse cx="156" cy="164" rx="18" ry="9"/>
+        </g>
+        <g stroke="#6b3a1f" stroke-width="2" stroke-linecap="round">
+          <path d="M78 166 l-2 5M86 168 l0 5M94 166 l2 5"/>
+          <path d="M148 166 l-2 5M156 168 l0 5M164 166 l2 5"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="plate" id="plate">
+      <svg viewBox="0 0 200 90">
+        <ellipse cx="100" cy="62" rx="94" ry="24" fill="#d8e6f3"/>
+        <ellipse cx="100" cy="58" rx="94" ry="24" fill="#fff" stroke="#3b6fb0" stroke-width="4"/>
+        <ellipse cx="100" cy="58" rx="70" ry="15" fill="none" stroke="#a9c3e3" stroke-width="2"/>
+        <g id="gyozas"></g>
+      </svg>
+    </div>
+
+    <div class="fx" id="fx"></div>
+    <div class="glass" id="glass" hidden></div>
+  </main>
+
+  <div class="controls">
+    <button class="choice nine" id="btn-nine">
+      <span class="choice-ico">🐾</span>
+      <span class="choice-main">クイヤを逃がす</span>
+      <span class="choice-sub">これは「9」だ！</span>
+    </button>
+    <button class="choice notnine" id="btn-not">
+      <span class="choice-ico">🥟</span>
+      <span class="choice-main">餃子を食べる</span>
+      <span class="choice-sub">9じゃない！</span>
+    </button>
+  </div>
+</div>
+
+<!-- タイトル -->
+<section class="overlay" id="title-screen">
+  <div class="card title-card">
+    <div class="title-nines" id="title-nines"></div>
+    <h2>クイヤゲーム</h2>
+    <p class="lead">看板の言葉は<strong>「9」</strong>？ それとも別の数？</p>
+    <ul class="rules">
+      <li><b>🐾 クイヤを逃がす</b> … 「9」だと思ったら</li>
+      <li><b>🥟 餃子を食べる</b> … 「9じゃない」と思ったら</li>
+      <li>当たると連続記録アップ。<b>9連続</b>を目指せ！</li>
+      <li>9問目は<b class="hot">超難問</b>（言語名ナシ・9秒制限）</li>
+    </ul>
+    <button class="big-btn" id="start-btn">はじめる</button>
+    <p class="small">キーボード：<kbd>←</kbd>/<kbd>1</kbd> 逃がす　<kbd>→</kbd>/<kbd>2</kbd> 食べる　<kbd>Enter</kbd> 次へ</p>
+  </div>
+</section>
+
+<!-- 結果 -->
+<section class="overlay" id="result" hidden>
+  <div class="card result-card">
+    <div class="result-mark" id="result-mark"></div>
+    <div class="result-title" id="result-title"></div>
+    <div class="result-word" id="result-word"></div>
+    <div class="result-detail" id="result-detail"></div>
+    <div class="result-note" id="result-note"></div>
+    <div class="result-streak" id="result-streak"></div>
+    <button class="big-btn" id="result-btn">次へ</button>
+  </div>
+</section>
+
+<!-- 最終問題の前振り -->
+<section class="overlay dark" id="final-intro" hidden>
+  <div class="final-text">
+    <div class="final-small">8連続成功！</div>
+    <div class="final-big">最終問題</div>
+    <div class="final-hot">超 難 問</div>
+    <div class="final-small">言語名は伏せられ、制限時間は 9 秒</div>
+  </div>
+</section>
+
+<!-- クリア -->
+<section class="overlay clear" id="clear-screen" hidden>
+  <div class="card clear-card">
+    <div class="clear-badge">9</div>
+    <h2>9連続成功！</h2>
+    <p>クイヤはガラスを突き破り、<br>9の向こう側へ飛び込んだ！</p>
+    <div class="result-word" id="clear-word"></div>
+    <div class="result-detail" id="clear-detail"></div>
+    <button class="big-btn" id="clear-btn">もう一度あそぶ</button>
+  </div>
+</section>
+
+<!-- 図鑑 -->
+<section class="overlay" id="zukan" hidden>
+  <div class="card zukan-card">
+    <div class="zukan-head">
+      <h2>9の図鑑</h2>
+      <button class="icon-btn" id="zukan-close" title="閉じる">✕</button>
+    </div>
+    <p class="small" id="zukan-count"></p>
+    <div class="zukan-list" id="zukan-list"></div>
+  </div>
+</section>
+
+<div class="shatter-layer" id="shatter-layer"></div>
+
+<script src="js/data.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
