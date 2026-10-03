@@ -307,8 +307,9 @@
     // 最終問題：正解でも不正解でもクイヤはガラスに飛び込む。割れたあとに判定が出る
     if (isFinal()) {
       el.timer.hidden = true;
+      const firstClear = correct && saveClear();
       await diveThroughGlass(correct);
-      if (correct) { addStreak(); showClear(); } else fail(false);
+      if (correct) { addStreak(); showClear(firstClear); } else fail(false);
       return;
     }
 
@@ -384,21 +385,31 @@
     setTimeout(() => buttons.forEach((b) => { b.disabled = false; }), ms);
   }
 
-  function showClear() {
+  // クリアを記録する。初めてのクリアなら true
+  function saveClear() {
+    if (isUltra()) {
+      const first = !state.ultraCleared;
+      state.ultraCleared = true;
+      store.set("qiy-ultra-cleared", true);
+      return first;
+    }
+    const first = !state.cleared;
+    unlockZukan();
+    syncUltraBtn();
+    return first;
+  }
+
+  function showClear(firstClear) {
     fillClear();
+    el.clearUnlock.hidden = !firstClear;
     if (isUltra()) {
       el.clearTitle.textContent = "超難関クリア！";
       el.clearMsg.innerHTML = "古代の言葉も、文字のない数も見抜いた！<br>クイヤは伝説の「9」ハンターになった！";
       el.clearUnlock.textContent = "🎉 図鑑に「超難関の9」が追加されました！";
-      el.clearUnlock.hidden = state.ultraCleared;
-      state.ultraCleared = true;
-      store.set("qiy-ultra-cleared", true);
     } else {
       el.clearTitle.textContent = "9連続成功！";
       el.clearMsg.innerHTML = "クイヤはガラスを突き破り、<br>9の向こう側へ飛び込んだ！";
       el.clearUnlock.textContent = "🎉「9の図鑑」と「超難関クイヤゲーム」が開放されました！";
-      el.clearUnlock.hidden = state.cleared;
-      unlockZukan();
     }
     el.clearUltra.hidden = isUltra();
     el.clearNormal.hidden = !isUltra();
@@ -591,27 +602,14 @@
     const flash = document.createElement("div"); flash.className = "flash"; layer.appendChild(flash);
     flash.animate([{ opacity: 0.9 }, { opacity: 0 }], { duration: 400, fill: "forwards" });
 
-    geo.shards.forEach((s) => {
-      const sh = document.createElement("div");
-      sh.className = "shard";
-      sh.style.clipPath = `polygon(${s.pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(",")})`;
-      sh.style.transformOrigin = `${s.c[0]}px ${s.c[1]}px`;
-      layer.appendChild(sh);
-      const dist = rand(0.6, 1.4) * (s.inner ? 900 : 500);
-      const tx = s.dir[0] * dist, ty = s.dir[1] * dist;
-      sh.animate([
-        { transform: "translate(0,0) rotate(0) scale(1)", opacity: 1 },
-        { transform: `translate(${tx * 0.6}px, ${ty * 0.6}px) rotate(${rand(-120, 120)}deg) scale(${rand(1.1, 1.5)})`, opacity: 0.95, offset: 0.5 },
-        { transform: `translate(${tx}px, ${ty + rand(300, 700)}px) rotate(${rand(-360, 360)}deg) scale(${rand(0.8, 1.6)})`, opacity: 0 },
-      ], { duration: rand(900, 1500), easing: "cubic-bezier(.2,.7,.4,1)", fill: "forwards" });
-    });
+    shatterOnCanvas(layer, geo.shards, W, H);
 
     if (correct) {
       // クイヤが画面のこちら側へ飛び込んでくる
       diver.animate([
         { transform: `translate(${dx}px, ${dy}px) scale(3)`, opacity: 1 },
-        { transform: `translate(${dx}px, ${dy}px) scale(12)`, opacity: 0 },
-      ], { duration: 700, easing: "ease-in", fill: "forwards" });
+        { transform: `translate(${dx}px, ${dy}px) scale(4.5)`, opacity: 0 },
+      ], { duration: 500, easing: "ease-in", fill: "forwards" });
     } else {
       // しょんぼりして落ちていく
       const m = diver.querySelector(".mouth");
@@ -631,12 +629,65 @@
     el.app.classList.remove("shake-screen");
   }
 
+  // ガラスの破片を 1 枚の canvas で飛ばす（スマホでもメモリを使いすぎないように）
+  function shatterOnCanvas(layer, shards, W, H) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cv = document.createElement("canvas");
+    cv.className = "shatter-canvas";
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    layer.appendChild(cv);
+    const ctx = cv.getContext("2d");
+    if (!ctx) return Promise.resolve();
+    ctx.scale(dpr, dpr);
+    const parts = shards.map((sh) => ({
+      ...sh,
+      dist: rand(0.6, 1.3) * (sh.inner ? 420 : 160),
+      fall: rand(500, 900),
+      spin: sh.inner ? rand(-4, 4) : rand(-0.35, 0.35), // 外側の大きな破片は中心が画面外なので、回しすぎると一瞬で消える
+      grow: rand(0, 0.4),
+      life: rand(1100, 1600),
+    }));
+    const t0 = performance.now();
+    return new Promise((resolve) => {
+      const frame = (now) => {
+        const ms = now - t0;
+        ctx.clearRect(0, 0, W, H);
+        let alive = false;
+        for (const p of parts) {
+          const t = Math.min(1, ms / p.life);
+          if (t >= 1) continue;
+          alive = true;
+          const out = 1 - Math.pow(1 - t, 3); // ease-out
+          const x = p.dir[0] * p.dist * out, y = p.dir[1] * p.dist * out + p.fall * t * t;
+          ctx.save();
+          ctx.globalAlpha = 1 - t * t;
+          ctx.translate(p.c[0] + x, p.c[1] + y);
+          ctx.rotate(p.spin * t);
+          ctx.scale(1 + p.grow * t, 1 + p.grow * t);
+          ctx.translate(-p.c[0], -p.c[1]);
+          ctx.beginPath();
+          p.pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+          ctx.closePath();
+          ctx.fillStyle = "rgba(225,242,255,.6)";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,.95)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+        }
+        if (alive) requestAnimationFrame(frame);
+        else { cv.remove(); resolve(); }
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+
   // ガラスが割れたあとの正解・不正解の発表
   async function judge(ok) {
     const j = document.createElement("div");
     j.className = "judge " + (ok ? "ok" : "ng");
     j.innerHTML = ok
-      ? `<div class="judge-rays"></div><div class="judge-stamp">〇 正解！！</div>`
+      ? `<div class="judge-stamp">〇 正解！！</div>`
       : `<div class="judge-stamp">✕ 不正解…</div>`;
     document.body.appendChild(j);
     if (ok) sound.ok(); else { sound.ng(); sound.thud(); }
