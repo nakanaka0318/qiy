@@ -17,7 +17,9 @@
   --font: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
   --script: "Noto Sans", "Noto Sans Ethiopic", "Noto Sans Cherokee", "Noto Sans Mongolian", "Noto Serif Tibetan",
     "Noto Sans Khmer", "Noto Sans Myanmar", "Noto Sans Lao", "Noto Sans Sinhala", "Noto Sans Georgian",
-    "Noto Sans Armenian", "Noto Sans Symbols 2", var(--font), system-ui, sans-serif;
+    "Noto Sans Armenian", "Noto Sans Symbols 2", "Noto Sans Coptic", "Noto Sans Glagolitic", "Noto Sans Gothic",
+    "Noto Sans Brahmi", "Noto Sans Pahawh Hmong", "Noto Sans Adlam", "Noto Sans NKo", "Noto Sans Osmanya",
+    "Noto Sans Ol Chiki", var(--font), system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
