@@ -63,7 +63,7 @@ kbd {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 16px;
 }
-.logo { margin: 0; font-size: 1.25rem; font-weight: 900; color: var(--accent); white-space: nowrap; }
+.logo { margin: 0; font-size: 1.25rem; font-weight: 900; color: var(--accent); white-space: nowrap; cursor: pointer; }
 .logo span { color: var(--ink); }
 .progress { display: flex; gap: 4px; flex: 1; justify-content: center; }
 .dot {
@@ -381,6 +381,7 @@ kbd {
 @media (max-width: 520px) {
   .logo { font-size: 1rem; }
   .best { display: none; }
+  body.ultra .logo span::after { content: none; }
   .dot { width: 18px; height: 18px; font-size: 9px; }
   .hud { gap: 6px; padding: 8px 12px; }
   .stage { margin: 0 12px; }
@@ -388,4 +389,54 @@ kbd {
 }
 @media (prefers-reduced-motion: reduce) {
   .cloud, .kuiya .tail, .kuiya.idle, .kuiya .eyes { animation: none; }
+}
+
+/* ───── 文字コードのない数（SVG） ───── */
+.glyph { display: inline-block; vertical-align: middle; height: 1.2em; width: auto; }
+.sign-word.drawn { padding: 8px; }
+.sign-word.drawn .glyph { height: clamp(64px, 18vw, 110px); max-width: 100%; }
+.result-word .glyph, .zukan-item .zw .glyph { max-width: 100%; }
+.result-word .glyph { height: 72px; }
+.zukan-item .zw .glyph { height: 48px; }
+.zukan-sub { grid-column: 1 / -1; margin: 14px 0 2px; font-size: 1.05rem; color: var(--not); }
+.zukan-sub.locked { color: var(--ink-soft); font-size: .9rem; font-weight: 700; }
+
+/* ───── 超難関モード ───── */
+.ultra-btn { border-color: var(--not); color: var(--not); }
+.ultra-btn.locked { border-color: var(--line); color: var(--ink-soft); }
+.title-card .ultra-btn { margin-top: 14px; }
+body.ultra {
+  --sky-top: #160a2b; --sky-bot: #4b1f52; --grass: #3e5f34; --soil: #5a3d2b; --accent: #e2533f;
+}
+body.ultra .sun { background: #f3efcf; box-shadow: 0 0 30px #f3efcf; }
+body.ultra .sign-board { background: linear-gradient(#8a2424, #4a0f0f); border-color: #2a0505; }
+body.ultra .logo span::after { content: "・超難関"; color: var(--not); font-size: .75em; }
+body.ultra .dot.on { background: #e2533f; border-color: #9c3220; color: #fff; }
+body.ultra .big-btn { box-shadow: 0 5px 0 #8f2a1c; }
+
+/* ───── ガラスが割れたあとの判定 ───── */
+.judge {
+  position: fixed; inset: 0; z-index: 34; display: grid; place-items: center; pointer-events: none; overflow: hidden;
+}
+.judge.ok { background: radial-gradient(circle, rgba(255,240,180,.6), rgba(255,180,40,.18) 60%, transparent); }
+.judge.ng { background: radial-gradient(circle, rgba(40,0,0,.3), rgba(25,0,10,.8)); animation: fadeIn .3s; }
+.judge-rays {
+  position: absolute; width: 180vmax; height: 180vmax;
+  background: repeating-conic-gradient(rgba(255,215,90,.5) 0 10deg, transparent 10deg 20deg);
+  -webkit-mask: radial-gradient(circle, #000 15%, transparent 55%); mask: radial-gradient(circle, #000 15%, transparent 55%);
+  animation: spinRays 5s linear infinite;
+}
+@keyframes spinRays { to { transform: rotate(360deg); } }
+.judge-stamp {
+  position: relative; white-space: nowrap; font-weight: 900; font-size: clamp(2.6rem, 13vw, 6rem);
+  padding: .1em .5em; border-radius: 24px; color: #fff;
+  animation: stamp .5s cubic-bezier(.3,1.6,.5,1) both;
+}
+.judge.ok .judge-stamp { background: linear-gradient(#ffb02e, #e8792b); box-shadow: 0 0 0 6px #fff, 0 0 50px #ffcf4d; text-shadow: 0 3px 0 #a8531a; }
+.judge.ng .judge-stamp { background: #4a5568; box-shadow: 0 0 0 6px #cbd5e0; animation: stampNg .6s cubic-bezier(.3,1.6,.5,1) both; }
+@keyframes stamp { from { transform: scale(3) rotate(-10deg); opacity: 0; } }
+@keyframes stampNg {
+  0% { transform: scale(3) rotate(8deg); opacity: 0; } 60% { transform: scale(1) rotate(-6deg); opacity: 1; }
+  70% { transform: translateX(-10px) rotate(-6deg); } 80% { transform: translateX(10px) rotate(-6deg); }
+  90% { transform: translateX(-6px) rotate(-6deg); } 100% { transform: rotate(-6deg); }
 }

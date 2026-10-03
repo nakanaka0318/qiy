@@ -7,13 +7,13 @@
 <meta name="description" content="世界の言語の「9」を見抜け！ クイヤを逃がすか、餃子を食べるか。9連続成功を目指すゲーム。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@700&family=Noto+Sans+Ethiopic:wght@700&family=Noto+Sans+Cherokee:wght@700&family=Noto+Sans+Mongolian&family=Noto+Serif+Tibetan:wght@700&family=Noto+Sans+Khmer:wght@700&family=Noto+Sans+Myanmar:wght@700&family=Noto+Sans+Lao:wght@700&family=Noto+Sans+Sinhala:wght@700&family=Noto+Sans+Georgian:wght@700&family=Noto+Sans+Armenian:wght@700&family=Noto+Sans+Symbols+2&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=5">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@700&family=Noto+Sans+Ethiopic:wght@700&family=Noto+Sans+Cherokee:wght@700&family=Noto+Sans+Mongolian&family=Noto+Serif+Tibetan:wght@700&family=Noto+Sans+Khmer:wght@700&family=Noto+Sans+Myanmar:wght@700&family=Noto+Sans+Lao:wght@700&family=Noto+Sans+Sinhala:wght@700&family=Noto+Sans+Georgian:wght@700&family=Noto+Sans+Armenian:wght@700&family=Noto+Sans+Symbols+2&family=Noto+Sans+Coptic&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
 <div id="app">
   <header class="hud">
-    <h1 class="logo">クイヤ<span>ゲーム</span></h1>
+    <h1 class="logo" id="logo" title="タイトルへ">クイヤ<span>ゲーム</span></h1>
     <div class="progress" id="progress" aria-label="連続成功"></div>
     <div class="hud-right">
       <div class="best">ベスト <b id="best">0</b></div>
@@ -124,6 +124,7 @@
       <li>クリアすると<b>「9の図鑑」</b>が開放される！</li>
     </ul>
     <button class="big-btn" id="start-btn">はじめる</button>
+    <button class="sub-btn ultra-btn" id="ultra-btn">🔒 超難関クイヤゲーム（クリアで開放）</button>
     <p class="small">キーボード：<kbd>←</kbd>/<kbd>1</kbd> 逃がす　<kbd>→</kbd>/<kbd>2</kbd> 食べさせる　<kbd>H</kbd> ヒント　<kbd>Enter</kbd> 次へ</p>
   </div>
 </section>
@@ -143,7 +144,7 @@
 
 <!-- 最終問題の前振り -->
 <section class="overlay dark" id="final-intro" hidden>
-  <div class="final-text">
+  <div class="final-text" id="final-text">
     <div class="final-small">8連続成功！</div>
     <div class="final-big">最終問題</div>
     <div class="final-hot">超 難 問</div>
@@ -155,11 +156,13 @@
 <section class="overlay clear" id="clear-screen" hidden>
   <div class="card clear-card">
     <div class="clear-badge">9</div>
-    <h2>9連続成功！</h2>
-    <p>クイヤはガラスを突き破り、<br>9の向こう側へ飛び込んだ！</p>
+    <h2 id="clear-title">9連続成功！</h2>
+    <p id="clear-msg">クイヤはガラスを突き破り、<br>9の向こう側へ飛び込んだ！</p>
     <div class="result-word" id="clear-word"></div>
     <div class="result-detail" id="clear-detail"></div>
     <p class="unlock" id="clear-unlock" hidden>🎉「9の図鑑」が開放されました！</p>
+    <button class="sub-btn ultra-btn" id="clear-ultra">🔥 超難関クイヤゲームに挑戦</button>
+    <button class="sub-btn" id="clear-normal" hidden>ふつうのクイヤゲームへ</button>
     <button class="sub-btn" id="clear-zukan">📖 9の図鑑を見る</button>
     <button class="big-btn" id="clear-btn">もう一度あそぶ</button>
   </div>
@@ -180,7 +183,9 @@
 <div class="shatter-layer" id="shatter-layer"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 
-<script src="js/data.js?v=5"></script>
-<script src="js/game.js?v=5"></script>
+<script src="js/data.js?v=6"></script>
+<script src="js/data-ultra.js?v=6"></script>
+<script src="js/glyphs.js?v=6"></script>
+<script src="js/game.js?v=6"></script>
 </body>
 </html>

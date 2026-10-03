@@ -2,6 +2,8 @@
   "use strict";
 
   const DATA = window.QIY_DATA;
+  const ULTRA = window.QIY_ULTRA;
+  const ALL = DATA.concat(ULTRA);
   const TOTAL = 9;           // 9問連続で成功するとクリア
   const FINAL_SECONDS = 9;   // 最終問題の制限時間
   const MAX_HINTS = 3;       // ヒントは1ゲーム3回まで
@@ -23,6 +25,8 @@
     zukan: $("zukan"), zukanBtn: $("zukan-btn"), zukanClose: $("zukan-close"), zukanList: $("zukan-list"), zukanCount: $("zukan-count"),
     mute: $("mute-btn"), shatter: $("shatter-layer"), toast: $("toast"),
     clearUnlock: $("clear-unlock"), clearZukan: $("clear-zukan"),
+    logo: $("logo"), ultraBtn: $("ultra-btn"), finalText: $("final-text"), clearTitle: $("clear-title"), clearMsg: $("clear-msg"),
+    clearUltra: $("clear-ultra"), clearNormal: $("clear-normal"),
     hintBtn: $("hint-btn"), hintLeft: $("hint-left"), signHint: $("sign-hint"),
   };
 
@@ -74,6 +78,7 @@
       pop() { tone(500, 0.18, { type: "triangle", vol: 0.2, slide: 700 }); },
       tick() { tone(1320, 0.05, { type: "square", vol: 0.06 }); },
       drum() { for (let i = 0; i < 3; i++) tone(90, 0.3, { at: i * 0.32, vol: 0.5, slide: -40 }); tone(70, 0.8, { at: 1.0, vol: 0.6, slide: -30 }); },
+      thud() { tone(80, 0.6, { vol: 0.6, slide: -40 }); noise(0.25, { freq: 300, vol: 0.5 }); },
       whoosh() { noise(0.5, { filter: "bandpass", freq: 900, vol: 0.4 }); },
       crash() {
         noise(1.1, { filter: "highpass", freq: 2500, vol: 0.9 });
@@ -88,8 +93,10 @@
   const state = {
     round: 0,          // 0 始まり。8 が最終問題
     streak: 0,
+    mode: "normal",    // "normal" または "ultra"（超難関）
     best: store.get("qiy-best", 0),
-    cleared: store.get("qiy-cleared", false), // 一度クリアすると図鑑が開放される
+    cleared: store.get("qiy-cleared", false), // 一度クリアすると図鑑と超難関が開放される
+    ultraCleared: store.get("qiy-ultra-cleared", false),
     q: null,
     used: new Set(),
     locked: true,
@@ -100,9 +107,23 @@
     underground: false, // クイヤが穴に潜ったまま（次の看板が出たら戻る）
   };
   const isFinal = () => state.round === TOTAL - 1;
+  const isUltra = () => state.mode === "ultra";
+  const bestKey = () => (isUltra() ? "qiy-best-ultra" : "qiy-best");
+
+  function setMode(mode) {
+    state.mode = mode;
+    state.best = store.get(bestKey(), 0);
+    document.body.classList.toggle("ultra", isUltra());
+    el.hintBtn.hidden = isUltra(); // 超難関はヒントなし
+  }
 
   // ───────── 出題 ─────────
   function tierFor(round) {
+    if (isUltra()) {
+      if (round === TOTAL - 1) return 5;
+      if (round < 4) return Math.random() < 0.5 ? 3 : 4;
+      return Math.random() < 0.5 ? 4 : 5;
+    }
     if (round === TOTAL - 1) return 3;
     if (round < 4) return 1;
     return Math.random() < 0.7 ? 2 : 1;
@@ -111,8 +132,8 @@
     const tier = tierFor(state.round);
     const wantNine = Math.random() < 0.5; // 50% の確率で「9」
     const match = (e) => e.t === tier && (e.n === 9) === wantNine;
-    let pool = DATA.filter((e) => match(e) && !state.used.has(e));
-    if (!pool.length) pool = DATA.filter(match);
+    let pool = ALL.filter((e) => match(e) && !state.used.has(e));
+    if (!pool.length) pool = ALL.filter(match);
     const q = pick(pool);
     state.used.add(q);
     return q;
@@ -171,9 +192,13 @@
     const q = state.q;
     const final = isFinal();
     el.stage.classList.toggle("final-mode", final);
-    el.signQ.textContent = final ? "最終問題・超難問" : `第${state.round + 1}問`;
-    el.signWord.textContent = q.text;
-    el.signWord.classList.toggle("long", [...q.text].length > 9);
+    el.signQ.textContent = isUltra()
+      ? (final ? "超難関・最終問題" : `超難関 第${state.round + 1}問`)
+      : (final ? "最終問題・超難問" : `第${state.round + 1}問`);
+    el.signWord.innerHTML = glyphHtml(q);
+    el.signWord.dataset.key = ALL.indexOf(q);
+    el.signWord.classList.toggle("drawn", !!q.draw);
+    el.signWord.classList.toggle("long", !q.draw && [...q.text].length > 9);
     el.signLang.textContent = final ? "？？？" : q.lang;
     el.sign.classList.remove("flip"); void el.sign.offsetWidth; el.sign.classList.add("flip");
   }
@@ -191,6 +216,9 @@
     if (isFinal()) {
       el.glass.hidden = false;
       setButtons(false);
+      el.finalText.innerHTML = isUltra()
+        ? `<div class="final-small">超難関・8連続成功！</div><div class="final-big">最終問題</div><div class="final-hot">極 難 問</div><div class="final-small">言語名なし・ヒントなし・制限時間 9 秒</div>`
+        : `<div class="final-small">8連続成功！</div><div class="final-big">最終問題</div><div class="final-hot">超 難 問</div><div class="final-small">言語名は伏せられ、制限時間は 9 秒</div>`;
       show(el.finalIntro);
       sound.drum();
       await sleep(2600);
@@ -214,7 +242,7 @@
   // ───────── ヒント ─────────
   function syncHint() {
     el.hintLeft.textContent = state.hints;
-    el.hintBtn.disabled = state.locked || state.hintUsed || state.hints <= 0;
+    el.hintBtn.disabled = isUltra() || state.locked || state.hintUsed || state.hints <= 0;
   }
   function useHint() {
     if (el.hintBtn.disabled) return;
@@ -227,8 +255,10 @@
     syncHint();
   }
 
-  function startGame() {
-    hide(el.title); hide(el.clear);
+  function startGame(mode = state.mode) {
+    stopTimer();
+    setMode(mode);
+    hide(el.title); hide(el.clear); hide(el.result);
     state.round = 0; state.streak = 0; state.used.clear();
     state.hints = MAX_HINTS;
     nextQuestion();
@@ -273,21 +303,26 @@
 
     if (saysNine) await animEscape(); else await animEat();
 
-    if (!correct) { setMood("sad"); sound.ng(); fail(false); return; }
-
-    state.streak++;
-    if (state.streak > state.best) { state.best = state.streak; store.set("qiy-best", state.best); }
-    sound.ok();
-    renderProgress();
-
+    // 最終問題：正解でも不正解でもクイヤはガラスに飛び込む。割れたあとに判定が出る
     if (isFinal()) {
       el.timer.hidden = true;
-      await diveThroughGlass();
-      showClear();
+      await diveThroughGlass(correct);
+      if (correct) { addStreak(); showClear(); } else fail(false);
       return;
     }
+
+    if (!correct) { setMood("sad"); sound.ng(); fail(false); return; }
+
+    addStreak();
+    sound.ok();
     if (!saysNine) { el.kuiya.classList.add("happy"); }
     showResult(true);
+  }
+
+  function addStreak() {
+    state.streak++;
+    if (state.streak > state.best) { state.best = state.streak; store.set(bestKey(), state.best); }
+    renderProgress();
   }
 
   function fail(timeout) {
@@ -311,7 +346,7 @@
     el.resultMark.className = "result-mark " + (ok ? "ok" : "ng");
     el.resultMark.textContent = ok ? "〇" : "✕";
     el.resultTitle.textContent = ok ? "せいかい！" : (timeout ? "時間切れ…" : "ざんねん…");
-    el.resultWord.textContent = q.text;
+    el.resultWord.innerHTML = glyphHtml(q);
     el.resultDetail.innerHTML = describe(q);
     el.resultNote.textContent = q.note ? "💡 " + q.note : "";
     if (ok) {
@@ -332,15 +367,33 @@
     nextQuestion();
   }
 
+  function glyphHtml(q) {
+    return q.draw ? window.QIY_GLYPH(q.draw[0], q.draw[1]) : escapeHtml(q.text);
+  }
+
   function fillClear() {
-    el.clearWord.textContent = state.q.text;
+    el.clearWord.innerHTML = glyphHtml(state.q);
     el.clearDetail.innerHTML = describe(state.q);
   }
 
   function showClear() {
     fillClear();
-    el.clearUnlock.hidden = state.cleared;
-    unlockZukan();
+    if (isUltra()) {
+      el.clearTitle.textContent = "超難関クリア！";
+      el.clearMsg.innerHTML = "古代の言葉も、文字のない数も見抜いた！<br>クイヤは伝説の「9」ハンターになった！";
+      el.clearUnlock.textContent = "🎉 図鑑に「超難関の9」が追加されました！";
+      el.clearUnlock.hidden = state.ultraCleared;
+      state.ultraCleared = true;
+      store.set("qiy-ultra-cleared", true);
+    } else {
+      el.clearTitle.textContent = "9連続成功！";
+      el.clearMsg.innerHTML = "クイヤはガラスを突き破り、<br>9の向こう側へ飛び込んだ！";
+      el.clearUnlock.textContent = "🎉「9の図鑑」と「超難関クイヤゲーム」が開放されました！";
+      el.clearUnlock.hidden = state.cleared;
+      unlockZukan();
+    }
+    el.clearUltra.hidden = isUltra();
+    el.clearNormal.hidden = !isUltra();
     show(el.clear);
     sound.fanfare();
     rainOfNines();
@@ -466,8 +519,8 @@
     clearKuiyaAnims({ keep: g });
   }
 
-  // 最終問題成功：クイヤがガラスを突き破って飛び込む
-  async function diveThroughGlass() {
+  // 最終問題：クイヤがガラスを突き破って飛び込み、そのあと正解・不正解を発表する
+  async function diveThroughGlass(correct) {
     if (state.underground) { await sleep(300); await popUp(); }
     clearKuiyaAnims();
     el.kuiya.className.baseVal = "kuiya";
@@ -544,18 +597,43 @@
       ], { duration: rand(900, 1500), easing: "cubic-bezier(.2,.7,.4,1)", fill: "forwards" });
     });
 
-    // クイヤが画面のこちら側へ飛び込んでくる
-    setTimeout(() => { fillClear(); show(el.clear); }, 450);
-    diver.animate([
-      { transform: `translate(${dx}px, ${dy}px) scale(3)`, opacity: 1 },
-      { transform: `translate(${dx}px, ${dy}px) scale(12)`, opacity: 0 },
-    ], { duration: 700, easing: "ease-in", fill: "forwards" });
+    if (correct) {
+      // クイヤが画面のこちら側へ飛び込んでくる
+      diver.animate([
+        { transform: `translate(${dx}px, ${dy}px) scale(3)`, opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) scale(12)`, opacity: 0 },
+      ], { duration: 700, easing: "ease-in", fill: "forwards" });
+    } else {
+      // しょんぼりして落ちていく
+      const m = diver.querySelector(".mouth");
+      m.setAttribute("d", "M114 128 Q123 119 132 128"); m.setAttribute("fill", "none");
+      diver.animate([
+        { transform: `translate(${dx}px, ${dy}px) scale(3) rotate(0)` },
+        { transform: `translate(${dx}px, ${dy - 30}px) scale(2.8) rotate(-12deg)`, offset: 0.25 },
+        { transform: `translate(${dx}px, ${H}px) scale(2.2) rotate(170deg)` },
+      ], { duration: 1200, easing: "cubic-bezier(.5,0,.9,.6)", fill: "forwards" });
+    }
+    await sleep(650);
+    await judge(correct);
 
-    await sleep(1500);
     layer.innerHTML = "";
     diver.remove();
     el.kuiya.classList.remove("hidden-for-dive");
     el.app.classList.remove("shake-screen");
+  }
+
+  // ガラスが割れたあとの正解・不正解の発表
+  async function judge(ok) {
+    const j = document.createElement("div");
+    j.className = "judge " + (ok ? "ok" : "ng");
+    j.innerHTML = ok
+      ? `<div class="judge-rays"></div><div class="judge-stamp">〇 正解！！</div>`
+      : `<div class="judge-stamp">✕ 不正解…</div>`;
+    document.body.appendChild(j);
+    if (ok) sound.ok(); else { sound.ng(); sound.thud(); }
+    await sleep(ok ? 1500 : 1800);
+    await j.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }).finished;
+    j.remove();
   }
 
   // 衝突点から放射状のヒビと破片の多角形を作る
@@ -622,6 +700,25 @@
     store.set("qiy-cleared", true);
     syncZukanBtn();
   }
+  function syncUltraBtn() {
+    el.ultraBtn.textContent = state.cleared ? "🔥 超難関クイヤゲーム" : "🔒 超難関クイヤゲーム（クリアで開放）";
+    el.ultraBtn.classList.toggle("locked", !state.cleared);
+  }
+  function startUltra() {
+    if (!state.cleared) { toast("🔒 ふつうのクイヤゲームをクリアすると遊べるよ！"); return; }
+    sound.unlock();
+    startGame("ultra");
+  }
+  function goTitle() {
+    stopTimer();
+    state.locked = true; setButtons(false);
+    el.timer.hidden = true; el.glass.hidden = true;
+    [el.result, el.clear, el.finalIntro, el.zukan].forEach(hide);
+    setMode("normal");
+    renderProgress();
+    syncUltraBtn();
+    show(el.title);
+  }
   let toastTimer = null;
   function toast(msg) {
     el.toast.textContent = msg;
@@ -632,18 +729,25 @@
   }
   function openZukan() {
     if (!state.cleared) { toast("🔒 クリアすると「9の図鑑」がひらくよ！"); return; }
+    buildZukan();
     show(el.zukan);
   }
 
-  function buildZukan() {
-    const nines = DATA.filter((e) => e.n === 9);
-    const langs = new Set(nines.map((e) => e.lang));
-    el.zukanCount.textContent = `「9」を表す言葉・記号 ${nines.length} 種類（${langs.size} の言語・表記）を収録`;
-    el.zukanList.innerHTML = nines.map((e) => `
+  function zukanItems(list) {
+    return list.map((e) => `
       <div class="zukan-item">
-        <div class="zw">${escapeHtml(e.text)}</div>
+        <div class="zw">${glyphHtml(e)}</div>
         <div class="zl">${escapeHtml(e.lang)}・${escapeHtml(e.rom)}</div>
       </div>`).join("");
+  }
+  function buildZukan() {
+    const nines = DATA.filter((e) => e.n === 9);
+    const ultraNines = ULTRA.filter((e) => e.n === 9);
+    const langs = new Set(nines.map((e) => e.lang));
+    el.zukanCount.textContent = `「9」を表す言葉・記号 ${nines.length} 種類（${langs.size} の言語・表記）を収録`;
+    el.zukanList.innerHTML = zukanItems(nines) + (state.ultraCleared
+      ? `<h3 class="zukan-sub">🔥 超難関の9（${ultraNines.length} 種類）</h3>` + zukanItems(ultraNines)
+      : `<p class="zukan-sub locked">🔒 超難関クイヤゲームをクリアすると「超難関の9」が追加されます</p>`);
   }
 
   // ───────── 汎用 ─────────
@@ -663,12 +767,16 @@
   }
 
   // ───────── イベント ─────────
-  el.startBtn.addEventListener("click", () => { sound.unlock(); startGame(); });
+  el.startBtn.addEventListener("click", () => { sound.unlock(); startGame("normal"); });
+  el.ultraBtn.addEventListener("click", startUltra);
+  el.clearUltra.addEventListener("click", () => startGame("ultra"));
+  el.clearNormal.addEventListener("click", () => startGame("normal"));
+  el.logo.addEventListener("click", goTitle);
   el.btnNine.addEventListener("click", () => answer(true));
   el.btnNot.addEventListener("click", () => answer(false));
   el.hintBtn.addEventListener("click", useHint);
   el.resultBtn.addEventListener("click", onResultNext);
-  el.clearBtn.addEventListener("click", startGame);
+  el.clearBtn.addEventListener("click", () => startGame());
   el.zukanBtn.addEventListener("click", openZukan);
   el.clearZukan.addEventListener("click", openZukan);
   el.zukanClose.addEventListener("click", () => hide(el.zukan));
@@ -681,6 +789,7 @@
     if (!el.title.hidden && e.key === "Enter") { e.preventDefault(); el.startBtn.click(); return; }
     if (!el.result.hidden && e.key === "Enter") { e.preventDefault(); onResultNext(); return; }
     if (!el.clear.hidden && e.key === "Enter") { e.preventDefault(); startGame(); return; }
+    if (!el.title.hidden) return;
     if (e.key === "ArrowLeft" || e.key === "1") answer(true);
     if (e.key === "ArrowRight" || e.key === "2") answer(false);
     if (e.key === "h" || e.key === "H") useHint();
@@ -690,7 +799,7 @@
   setButtons(false);
   resetScene();
   renderProgress();
-  buildZukan();
   syncZukanBtn();
+  syncUltraBtn();
   titleTicker();
 })();
