@@ -47,6 +47,18 @@ body {
   font-family: var(--font);
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
+  /* スマホ：長押しで文字が青く選択されたり、コピーのメニューが出たりしないようにする */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* スマホ：ダブルタップで拡大しない（ピンチでの拡大はできる） */
+html, body, * { touch-action: manipulation; }
+/* 問題文だけは長押しで選択・コピーできる */
+.sign-word, .result-word, .clear-card .result-word {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 button { font-family: inherit; cursor: pointer; }
 kbd {
