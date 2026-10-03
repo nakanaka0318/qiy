@@ -6,6 +6,7 @@
   const ALL = DATA.concat(ULTRA);
   const TOTAL = 9;           // 9問連続で成功するとクリア
   const FINAL_SECONDS = 9;   // 最終問題の制限時間
+  const CALC_FINAL_SECONDS = 30; // 計算モードの最終問題（とにかく長い式）の制限時間
   const MAX_HINTS = 3;       // ヒントは1ゲーム3回まで
 
   const $ = (id) => document.getElementById(id);
@@ -26,7 +27,7 @@
     mute: $("mute-btn"), shatter: $("shatter-layer"), toast: $("toast"),
     clearUnlock: $("clear-unlock"), clearZukan: $("clear-zukan"),
     logo: $("logo"), ultraBtn: $("ultra-btn"), finalText: $("final-text"), clearTitle: $("clear-title"), clearMsg: $("clear-msg"),
-    clearUltra: $("clear-ultra"), clearNormal: $("clear-normal"),
+    clearUltra: $("clear-ultra"), clearNormal: $("clear-normal"), calcBtn: $("calc-btn"),
     hintBtn: $("hint-btn"), hintLeft: $("hint-left"), signHint: $("sign-hint"),
   };
 
@@ -105,15 +106,19 @@
     hints: MAX_HINTS,
     hintUsed: false,   // この問題でヒントを見たか
     underground: false, // クイヤが穴に潜ったまま（次の看板が出たら戻る）
+    calcCleared: store.get("qiy-calc-cleared", false),
+    recentCalc: [],     // 計算モードで最近出したテンプレート（同じ形が続かないように）
   };
   const isFinal = () => state.round === TOTAL - 1;
   const isUltra = () => state.mode === "ultra";
-  const bestKey = () => (isUltra() ? "qiy-best-ultra" : "qiy-best");
+  const isCalc = () => state.mode === "calc";
+  const bestKey = () => (isUltra() ? "qiy-best-ultra" : isCalc() ? "qiy-best-calc" : "qiy-best");
 
   function setMode(mode) {
     state.mode = mode;
     state.best = store.get(bestKey(), 0);
     document.body.classList.toggle("ultra", isUltra());
+    document.body.classList.toggle("calc", isCalc());
     el.hintBtn.hidden = isUltra(); // 超難関はヒントなし
   }
 
@@ -128,7 +133,16 @@
     if (round < 4) return 1;
     return Math.random() < 0.7 ? 2 : 1;
   }
+  // 計算モード：1〜2問目かんたん、3〜5問目ふつう、6〜8問目むずかしい、9問目超むずかしい
+  function calcLevel(round) {
+    return round < 2 ? 1 : round < 5 ? 2 : round < 8 ? 3 : 4;
+  }
   function chooseQuestion() {
+    if (isCalc()) {
+      const q = window.QIY_CALC.make(calcLevel(state.round), Math.random() < 0.5, new Set(state.recentCalc));
+      state.recentCalc = [q.id, ...state.recentCalc].slice(0, 3);
+      return q;
+    }
     const tier = tierFor(state.round);
     const wantNine = Math.random() < 0.5; // 50% の確率で「9」
     const match = (e) => e.t === tier && (e.n === 9) === wantNine;
@@ -194,12 +208,15 @@
     el.stage.classList.toggle("final-mode", final);
     el.signQ.textContent = isUltra()
       ? (final ? "超難関・最終問題" : `超難関 第${state.round + 1}問`)
+      : isCalc() ? (final ? "計算・最終問題" : `計算 第${state.round + 1}問`)
       : (final ? "最終問題・超難問" : `第${state.round + 1}問`);
     el.signWord.innerHTML = glyphHtml(q);
-    el.signWord.dataset.key = ALL.indexOf(q);
+    el.signWord.dataset.key = q.calc ? "" : ALL.indexOf(q);
+    el.signWord.classList.toggle("calc", !!q.calc);
     el.signWord.classList.toggle("drawn", !!q.draw);
-    el.signWord.classList.toggle("long", !q.draw && [...q.text].length > 9);
-    el.signLang.textContent = final ? "？？？" : q.lang;
+    el.signWord.classList.toggle("long", q.calc ? q.long || el.signWord.textContent.length > 26 : !q.draw && [...q.text].length > 9);
+    // 計算モードは言語名の代わりに難しさを表示（最終問題でも隠さない）
+    el.signLang.textContent = q.calc ? `難しさ：${q.lang}` : final ? "？？？" : q.lang;
     el.sign.classList.remove("flip"); void el.sign.offsetWidth; el.sign.classList.add("flip");
   }
 
@@ -216,7 +233,9 @@
     if (isFinal()) {
       el.glass.hidden = false;
       setButtons(false);
-      el.finalText.innerHTML = isUltra()
+      el.finalText.innerHTML = isCalc()
+        ? `<div class="final-small">計算・8連続成功！</div><div class="final-big">最終問題</div><div class="final-hot">超むずかしい</div><div class="final-small">大学数学レベル＆とにかく長い式・制限時間 ${CALC_FINAL_SECONDS} 秒</div>`
+        : isUltra()
         ? `<div class="final-small">超難関・8連続成功！</div><div class="final-big">最終問題</div><div class="final-hot">極 難 問</div><div class="final-small">言語名なし・ヒントなし・制限時間 9 秒</div>`
         : `<div class="final-small">8連続成功！</div><div class="final-big">最終問題</div><div class="final-hot">超 難 問</div><div class="final-small">言語名は伏せられ、制限時間は 9 秒</div>`;
       show(el.finalIntro);
@@ -249,7 +268,8 @@
     state.hints--;
     state.hintUsed = true;
     // 絵で描く表し方には読みがないので、数え方のヒントを出す
-    el.signHint.textContent = state.q.kana ? "読み：" + state.q.kana : "ヒント：" + state.q.tip;
+    if (state.q.calc) el.signHint.innerHTML = "数字にすると：" + state.q.hintHtml;
+    else el.signHint.textContent = state.q.kana ? "読み：" + state.q.kana : "ヒント：" + state.q.tip;
     el.signHint.hidden = false;
     el.signHint.classList.remove("in"); void el.signHint.offsetWidth; el.signHint.classList.add("in");
     sound.pop();
@@ -266,7 +286,8 @@
   }
 
   function startTimer() {
-    let left = FINAL_SECONDS;
+    const total = isCalc() ? CALC_FINAL_SECONDS : FINAL_SECONDS;
+    let left = total;
     const C = 2 * Math.PI * 19;
     el.timer.hidden = false; el.timer.classList.remove("warn");
     el.timerFg.style.transition = "none";
@@ -277,7 +298,7 @@
     state.timerId = setInterval(() => {
       left--;
       el.timerNum.textContent = Math.max(0, left);
-      el.timerFg.style.strokeDashoffset = String(C * (1 - left / FINAL_SECONDS));
+      el.timerFg.style.strokeDashoffset = String(C * (1 - left / total));
       if (left <= 3) { el.timer.classList.add("warn"); sound.tick(); }
       if (left <= 0) { stopTimer(); timeUp(); }
     }, 1000);
@@ -337,6 +358,10 @@
   }
 
   function describe(q) {
+    if (q.calc) {
+      return `<span class="calc-plain">${q.hintHtml}</span><br>= <span class="num">${q.valueText}</span>` +
+        (q.n === 9 ? "…つまり <b>「9」</b>！" : "…<b>「9」ではない</b>！");
+    }
     return `<b>${q.lang}</b>（${escapeHtml(q.rom)}）<br>意味は <span class="num">${q.n}</span>` +
       (q.n === 9 ? "…つまり <b>「9」</b>！" : "…<b>「9」ではない</b>！");
   }
@@ -371,6 +396,7 @@
   }
 
   function glyphHtml(q) {
+    if (q.calc) return q.html;
     return q.draw ? window.QIY_GLYPH(q.draw[0], q.draw[1]) : escapeHtml(q.text);
   }
 
@@ -387,6 +413,12 @@
 
   // クリアを記録する。初めてのクリアなら true
   function saveClear() {
+    if (isCalc()) {
+      const first = !state.calcCleared;
+      state.calcCleared = true;
+      store.set("qiy-calc-cleared", true);
+      return first;
+    }
     if (isUltra()) {
       const first = !state.ultraCleared;
       state.ultraCleared = true;
@@ -402,7 +434,11 @@
   function showClear(firstClear) {
     fillClear();
     el.clearUnlock.hidden = !firstClear;
-    if (isUltra()) {
+    if (isCalc()) {
+      el.clearTitle.textContent = "計算モードクリア！";
+      el.clearMsg.innerHTML = "どんな言葉の数でも、どんな式でも計算できる！<br>クイヤは「9」の計算の達人になった！";
+      el.clearUnlock.textContent = "🎉 クイヤ計算モードを初クリア！";
+    } else if (isUltra()) {
       el.clearTitle.textContent = "超難関クリア！";
       el.clearMsg.innerHTML = "古代の言葉も、文字のない数も見抜いた！<br>クイヤは伝説の「9」ハンターになった！";
       el.clearUnlock.textContent = "🎉 図鑑に「超難関の9」が追加されました！";
@@ -411,8 +447,8 @@
       el.clearMsg.innerHTML = "クイヤはガラスを突き破り、<br>9の向こう側へ飛び込んだ！";
       el.clearUnlock.textContent = "🎉「9の図鑑」と「超難関クイヤゲーム」が開放されました！";
     }
-    el.clearUltra.hidden = isUltra();
-    el.clearNormal.hidden = !isUltra();
+    el.clearUltra.hidden = state.mode !== "normal";
+    el.clearNormal.hidden = state.mode === "normal";
     show(el.clear);
     armButtons([el.clearBtn, el.clearUltra, el.clearNormal, el.clearZukan], 1500);
     sound.fanfare();
@@ -829,6 +865,7 @@
   // ───────── イベント ─────────
   el.startBtn.addEventListener("click", () => { sound.unlock(); startGame("normal"); });
   el.ultraBtn.addEventListener("click", startUltra);
+  el.calcBtn.addEventListener("click", () => { sound.unlock(); startGame("calc"); });
   el.clearUltra.addEventListener("click", () => startGame("ultra"));
   el.clearNormal.addEventListener("click", () => startGame("normal"));
   el.logo.addEventListener("click", goTitle);
@@ -854,6 +891,9 @@
     if (e.key === "ArrowRight" || e.key === "2") answer(false);
     if (e.key === "h" || e.key === "H") useHint();
   });
+
+  // 動作確認（テスト）用：いまの問題を返す
+  window.QIY_DEBUG = { current: () => state.q };
 
   syncMute();
   setButtons(false);
