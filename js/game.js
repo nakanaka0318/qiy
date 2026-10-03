@@ -20,7 +20,8 @@
     finalIntro: $("final-intro"),
     clear: $("clear-screen"), clearWord: $("clear-word"), clearDetail: $("clear-detail"), clearBtn: $("clear-btn"),
     zukan: $("zukan"), zukanBtn: $("zukan-btn"), zukanClose: $("zukan-close"), zukanList: $("zukan-list"), zukanCount: $("zukan-count"),
-    mute: $("mute-btn"), shatter: $("shatter-layer"),
+    mute: $("mute-btn"), shatter: $("shatter-layer"), toast: $("toast"),
+    clearUnlock: $("clear-unlock"), clearZukan: $("clear-zukan"),
   };
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -68,6 +69,7 @@
       ng() { tone(220, 0.45, { type: "sawtooth", vol: 0.12, slide: -120 }); },
       dig() { for (let i = 0; i < 5; i++) noise(0.09, { at: i * 0.13, freq: 500, vol: 0.4 }); },
       chomp() { for (let i = 0; i < 3; i++) { noise(0.07, { at: i * 0.2, filter: "bandpass", freq: 1400, vol: 0.6 }); tone(180, 0.08, { at: i * 0.2, vol: 0.15 }); } },
+      pop() { tone(500, 0.18, { type: "triangle", vol: 0.2, slide: 700 }); },
       tick() { tone(1320, 0.05, { type: "square", vol: 0.06 }); },
       drum() { for (let i = 0; i < 3; i++) tone(90, 0.3, { at: i * 0.32, vol: 0.5, slide: -40 }); tone(70, 0.8, { at: 1.0, vol: 0.6, slide: -30 }); },
       whoosh() { noise(0.5, { filter: "bandpass", freq: 900, vol: 0.4 }); },
@@ -85,6 +87,7 @@
     round: 0,          // 0 始まり。8 が最終問題
     streak: 0,
     best: store.get("qiy-best", 0),
+    cleared: store.get("qiy-cleared", false), // 一度クリアすると図鑑が開放される
     q: null,
     used: new Set(),
     locked: true,
@@ -140,6 +143,7 @@
   }
 
   function resetScene() {
+    clearKuiyaAnims();
     el.kuiya.className.baseVal = "kuiya idle";
     el.hole.classList.remove("open");
     setMood("happy");
@@ -292,6 +296,8 @@
 
   function showClear() {
     fillClear();
+    el.clearUnlock.hidden = state.cleared;
+    unlockZukan();
     show(el.clear);
     sound.fanfare();
     rainOfNines();
@@ -337,8 +343,33 @@
     dirtBurst(26);
     popText("ザクザク！", el.kuiyaWrap);
     await sleep(650);
-    el.kuiya.classList.add("gone");
-    await sleep(750);
+    const h = el.kuiyaWrap.clientHeight * 1.05;
+    await animateKuiya([{ transform: "translateY(0)" }, { transform: `translateY(${h}px)` }],
+      { duration: 650, easing: "ease-in", fill: "forwards" });
+    await sleep(350);
+    // 穴からぴょこっと戻ってくる
+    el.kuiya.className.baseVal = "kuiya";
+    sound.pop();
+    popText("ぴょこっ", el.kuiyaWrap);
+    await animateKuiya([
+      { transform: `translateY(${h}px)` },
+      { transform: `translateY(${-h * 0.12}px)`, offset: 0.7 },
+      { transform: "translateY(0)" },
+    ], { duration: 500, easing: "ease-out", fill: "forwards" });
+    clearKuiyaAnims();
+    el.hole.classList.remove("open");
+  }
+
+  // クイヤ本体の動き（WAAPI）。終わったら必ず解除して元の位置に戻す
+  let kuiyaAnims = [];
+  function animateKuiya(frames, opts) {
+    const a = el.kuiya.animate(frames, opts);
+    kuiyaAnims.push(a);
+    return a.finished.catch(() => {});
+  }
+  function clearKuiyaAnims() {
+    kuiyaAnims.forEach((a) => a.cancel());
+    kuiyaAnims = [];
   }
 
   async function animEat() {
@@ -355,11 +386,7 @@
 
   // 最終問題成功：クイヤがガラスを突き破って飛び込む
   async function diveThroughGlass() {
-    // 穴に潜っていたら顔を出す
-    if (el.kuiya.classList.contains("gone")) {
-      el.kuiya.className.baseVal = "kuiya";
-      await sleep(500);
-    }
+    clearKuiyaAnims();
     el.kuiya.className.baseVal = "kuiya";
     setMood("happy");
     await sleep(250);
@@ -503,6 +530,28 @@
   }
 
   // ───────── 図鑑 ─────────
+  function syncZukanBtn() {
+    el.zukanBtn.textContent = state.cleared ? "📖" : "🔒";
+    el.zukanBtn.title = state.cleared ? "9の図鑑" : "9の図鑑（クリアで開放）";
+  }
+  function unlockZukan() {
+    state.cleared = true;
+    store.set("qiy-cleared", true);
+    syncZukanBtn();
+  }
+  let toastTimer = null;
+  function toast(msg) {
+    el.toast.textContent = msg;
+    show(el.toast);
+    el.toast.classList.remove("in"); void el.toast.offsetWidth; el.toast.classList.add("in");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => hide(el.toast), 2600);
+  }
+  function openZukan() {
+    if (!state.cleared) { toast("🔒 クリアすると「9の図鑑」がひらくよ！"); return; }
+    show(el.zukan);
+  }
+
   function buildZukan() {
     const nines = DATA.filter((e) => e.n === 9);
     const langs = new Set(nines.map((e) => e.lang));
@@ -536,7 +585,8 @@
   el.btnNot.addEventListener("click", () => answer(false));
   el.resultBtn.addEventListener("click", onResultNext);
   el.clearBtn.addEventListener("click", startGame);
-  el.zukanBtn.addEventListener("click", () => show(el.zukan));
+  el.zukanBtn.addEventListener("click", openZukan);
+  el.clearZukan.addEventListener("click", openZukan);
   el.zukanClose.addEventListener("click", () => hide(el.zukan));
   el.zukan.addEventListener("click", (e) => { if (e.target === el.zukan) hide(el.zukan); });
   const syncMute = () => { el.mute.textContent = sound.muted ? "🔇" : "🔊"; };
@@ -556,5 +606,6 @@
   resetScene();
   renderProgress();
   buildZukan();
+  syncZukanBtn();
   titleTicker();
 })();

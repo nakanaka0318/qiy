@@ -179,7 +179,6 @@ kbd {
 @keyframes bob { 50% { transform: translateY(-3%); } }
 .kuiya.dig .tail { animation: dig .18s linear infinite; }
 @keyframes dig { 50% { transform: rotate(-35deg); } }
-.kuiya.gone { transform: translateY(105%); transition: transform .7s ease-in; }
 .kuiya.happy { animation: hop .4s ease 2; }
 @keyframes hop { 50% { transform: translateY(-14%); } }
 .kuiya.hidden-for-dive { visibility: hidden; }
@@ -304,7 +303,21 @@ kbd {
 @keyframes spin { from { transform: rotateY(720deg) scale(.2); } }
 .clear-card { position: relative; z-index: 1; }
 .clear-card p { line-height: 1.7; }
-.clear-card .big-btn { margin-top: 14px; }
+.clear-card .big-btn { margin-top: 10px; }
+.unlock { font-weight: 900; color: var(--accent); margin: 12px 0 0; }
+.sub-btn {
+  display: block; margin: 12px auto 0; border: 2px solid var(--accent); background: var(--card); color: var(--accent);
+  font-weight: 900; font-size: 1rem; padding: 8px 22px; border-radius: 999px;
+}
+.toast {
+  position: fixed; left: 50%; bottom: calc(130px + env(safe-area-inset-bottom)); z-index: 40;
+  transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px);
+  background: var(--ink); color: var(--bg); font-weight: 700; font-size: .95rem;
+  padding: 10px 16px; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+.toast[hidden] { display: none; }
+.toast.in { animation: toastIn .3s cubic-bezier(.3,1.4,.5,1); }
+@keyframes toastIn { from { transform: translate(-50%, 20px); opacity: 0; } }
 
 .zukan-card { width: min(100%, 620px); text-align: left; }
 .zukan-head { display: flex; align-items: center; justify-content: space-between; }
